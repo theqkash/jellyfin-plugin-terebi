@@ -7,6 +7,15 @@
     "owner": "theqkash",
     "category": "Live TV",
     "imageUrl": "https://raw.githubusercontent.com/theqkash/jellyfin-plugin-terebi/main/docs/thumb.png",
-    "versions": []
+    "versions": [
+      {
+        "version": "0.1.1.0",
+        "changelog": "",
+        "targetAbi": "12.0.0.0",
+        "sourceUrl": "https://github.com/theqkash/jellyfin-plugin-terebi/releases/download/v0.1.1.0/terebi_0.1.1.0.zip",
+        "checksum": "ce4bcc7d9f173e11a5b427e4a04f6f52",
+        "timestamp": "2026-11-10T03:08:32Z"
+      }
+    ]
   }
 ]
