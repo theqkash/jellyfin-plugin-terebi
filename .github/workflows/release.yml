@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Build and package
+        run: ./build-release.sh "${GITHUB_REF_NAME#v}"
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" "artifacts/terebi_$VERSION.zip" --title "Terebi $VERSION" --notes "Install through the plugin repository (see the README) or unpack the zip into the Jellyfin plugins folder."
+      - name: Publish the updated manifest on main
+        run: |
+          cp manifest.json /tmp/manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -f main
+          cp /tmp/manifest.json manifest.json
+          git add manifest.json
+          git commit -m "manifest: ${GITHUB_REF_NAME#v}"
+          git push origin main

@@ -1,0 +1,54 @@
+[
+ {
+  "id": "skip-headers",
+  "name": "Skip separator entries",
+  "enabled": true,
+  "sourceIds": [],
+  "categoryPattern": null,
+  "namePattern": "^\\s*[#=\\-\\*]{3,}",
+  "category": "",
+  "numberStart": 0,
+  "autoAdd": false,
+  "followProviderName": false,
+  "exclude": true
+ },
+ {
+  "id": "xxx",
+  "name": "Adult at the very end",
+  "enabled": true,
+  "sourceIds": [],
+  "categoryPattern": "XXX|ADULT|EROTI",
+  "namePattern": null,
+  "category": "XXX",
+  "numberStart": 90000,
+  "autoAdd": true,
+  "followProviderName": false,
+  "exclude": false
+ },
+ {
+  "id": "ppv",
+  "name": "Event and PPV slots follow provider names",
+  "enabled": true,
+  "sourceIds": [],
+  "categoryPattern": "PPV|EVENT",
+  "namePattern": null,
+  "category": "PPV",
+  "numberStart": 80000,
+  "autoAdd": true,
+  "followProviderName": true,
+  "exclude": false
+ },
+ {
+  "id": "seasonal",
+  "name": "Seasonal 24/7 near the end",
+  "enabled": true,
+  "sourceIds": [],
+  "categoryPattern": "24/7|CHRISTMAS|SEASONAL",
+  "namePattern": null,
+  "category": "Seasonal",
+  "numberStart": 85000,
+  "autoAdd": true,
+  "followProviderName": false,
+  "exclude": false
+ }
+]

@@ -1,0 +1,12 @@
+[
+  {
+    "guid": "7d3e1b52-6f4a-4c8e-9b0d-2a5c7e9f1b34",
+    "name": "Terebi",
+    "description": "Xtream and M3U aggregator: merged channels, failover, health checks, EPG.",
+    "overview": "Xtream and M3U aggregator: merged channels, failover, health checks, EPG.",
+    "owner": "theqkash",
+    "category": "Live TV",
+    "imageUrl": "https://raw.githubusercontent.com/theqkash/jellyfin-plugin-terebi/main/docs/thumb.png",
+    "versions": []
+  }
+]

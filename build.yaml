@@ -1,0 +1,17 @@
+---
+name: "Terebi"
+guid: "7d3e1b52-6f4a-4c8e-9b0d-2a5c7e9f1b34"
+version: "0.1.0.0"
+targetAbi: "12.0.0.0"
+framework: "net10.0"
+overview: "Xtream and M3U aggregator: merged channels, failover, health checks, EPG"
+description: >
+  Turns any number of Xtream accounts and M3U playlists into one Live TV channel list: duplicate streams are merged
+  into logical channels with failover, dead streams are detected, categories and channel numbers follow rules,
+  EPG comes from XMLTV feeds, and logos are cached locally.
+category: "Live TV"
+owner: "theqkash"
+artifacts:
+  - "Jellyfin.Plugin.Terebi.dll"
+changelog: >
+  Initial release.

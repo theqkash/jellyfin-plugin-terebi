@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Terebi</title>
+</head>
+<body>
+<div id="TerebiPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox,emby-select,emby-textarea" data-controller="__plugin/terebi.js">
+    <div data-role="content">
+        <div class="content-primary">
+            <style>
+                .tb-tabs{display:flex;gap:.4em;flex-wrap:wrap;margin:0 0 1em 0}
+                .tb-tabs button{padding:.5em 1em;border-radius:.4em;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:inherit;cursor:pointer}
+                .tb-tabs button.active{background:#00a4dc;color:#fff;border-color:#00a4dc}
+                .tb-panel{display:none}.tb-panel.active{display:block}
+                table.tb{width:100%;border-collapse:collapse;font-size:.92em}
+                table.tb th,table.tb td{padding:.35em .5em;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}
+                table.tb th{opacity:.7;font-weight:600;position:sticky;top:0;background:#202020}
+                .tb-row-disabled{opacity:.45}
+                .tb-pill{display:inline-block;padding:.05em .5em;border-radius:1em;font-size:.8em;background:rgba(255,255,255,.12);margin-right:.3em;white-space:nowrap}
+                .tb-ok{background:rgba(46,160,67,.35)}.tb-dead{background:rgba(220,53,69,.45)}.tb-unknown{background:rgba(255,193,7,.3)}
+                .tb-toolbar{display:flex;gap:.5em;flex-wrap:wrap;align-items:center;margin:.6em 0}
+                .tb-toolbar input[type=text]{padding:.45em .6em;border-radius:.3em;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:inherit;min-width:16em}
+                .tb-toolbar select{padding:.45em;border-radius:.3em;background:rgba(0,0,0,.25);color:inherit;border:1px solid rgba(255,255,255,.2)}
+                .tb-btn{padding:.4em .9em;border-radius:.3em;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:inherit;cursor:pointer}
+                .tb-btn.primary{background:#00a4dc;border-color:#00a4dc;color:#fff}
+                .tb-btn.danger{background:rgba(220,53,69,.5);border-color:transparent;color:#fff}
+                .tb-muted{opacity:.6;font-size:.85em}
+                .tb-logo{height:1.6em;width:auto;max-width:3.5em;vertical-align:middle;background:rgba(255,255,255,.08);border-radius:.2em}
+                .tb-card{background:rgba(255,255,255,.05);border-radius:.5em;padding:.8em 1em;margin:.6em 0}
+                .tb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(14em,1fr));gap:.6em}
+                .tb-stat b{font-size:1.5em;display:block}
+                .tb-streams{margin:.3em 0 0 0;padding:0;list-style:none}
+                .tb-streams li{display:flex;gap:.5em;align-items:center;padding:.15em 0}
+                .tb-streams .tb-handle{cursor:grab;opacity:.5}
+                #tbEditor{position:fixed;right:0;top:0;bottom:0;width:min(560px,100%);background:#1c1c1c;box-shadow:-4px 0 20px rgba(0,0,0,.5);padding:1em 1.2em;overflow:auto;z-index:1000}
+                #tbEditor label{display:block;margin:.6em 0 .2em 0;font-size:.85em;opacity:.75}
+                #tbEditor input[type=text],#tbEditor input[type=number],#tbEditor select{width:100%;padding:.45em .6em;border-radius:.3em;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:inherit;box-sizing:border-box}
+                .tb-log{font-family:monospace;font-size:.8em;white-space:pre-wrap;background:rgba(0,0,0,.3);padding:.6em;border-radius:.3em;max-height:14em;overflow:auto}
+            </style>
+
+            <div class="verticalSection">
+                <h2 class="sectionTitle">Terebi <span class="tb-muted" id="tbVersion"></span></h2>
+                <div class="tb-tabs">
+                    <button data-tab="status" class="active">Status</button>
+                    <button data-tab="sources">Sources</button>
+                    <button data-tab="channels">Channels</button>
+                    <button data-tab="catalog">Catalog</button>
+                    <button data-tab="rules">Rules</button>
+                    <button data-tab="epg">EPG</button>
+                    <button data-tab="settings">Settings</button>
+                </div>
+            </div>
+
+            <div class="tb-panel active" data-panel="status">
+                <div class="tb-grid" id="tbStats"></div>
+                <div class="tb-toolbar">
+                    <button class="tb-btn primary" data-action="refreshSources">Refresh sources now</button>
+                    <button class="tb-btn" data-action="runHealth">Check stream health</button>
+                    <button class="tb-btn" data-action="refreshEpg">Refresh EPG</button>
+                    <button class="tb-btn" data-action="refreshGuide">Refresh Jellyfin guide</button>
+                    <button class="tb-btn" data-action="refreshLogos">Refresh logos</button>
+                    <button class="tb-btn" data-action="importXtream">Import from Xtream plugin</button>
+                    <button class="tb-btn" data-action="exportAll">Export configuration</button>
+                    <button class="tb-btn" data-action="importAll">Import configuration…</button>
+                </div>
+                <div class="tb-card"><b>Open streams</b><div id="tbOpen" class="tb-muted">none</div></div>
+                <div class="tb-card"><b>EPG files</b><div id="tbEpgStatus" class="tb-muted"></div></div>
+                <div class="tb-log" id="tbLog"></div>
+            </div>
+
+            <div class="tb-panel" data-panel="sources">
+                <div class="tb-toolbar">
+                    <button class="tb-btn primary" data-action="newSource" data-type="Xtream">+ Xtream source</button>
+                    <button class="tb-btn primary" data-action="newSource" data-type="M3u">+ M3U source</button>
+                </div>
+                <table class="tb" id="tbSources"><thead><tr><th>Name</th><th>Type</th><th>URL</th><th>Streams</th><th>Last refresh</th><th>Prio</th><th></th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <div class="tb-panel" data-panel="channels">
+                <div class="tb-toolbar">
+                    <input type="text" id="tbChanQ" placeholder="search name or number">
+                    <select id="tbChanCat"><option value="">all categories</option></select>
+                    <label><input type="checkbox" id="tbChanProblems"> only problems</label>
+                    <button class="tb-btn" data-action="loadChannels">Filter</button>
+                    <span class="tb-muted" id="tbChanCount"></span>
+                </div>
+                <div class="tb-toolbar">
+                    <span class="tb-muted">Selected:</span>
+                    <button class="tb-btn" data-action="bulkMerge">Merge into first</button>
+                    <button class="tb-btn" data-action="bulkEnable">Enable</button>
+                    <button class="tb-btn" data-action="bulkDisable">Disable</button>
+                    <button class="tb-btn" data-action="bulkCategory">Set category…</button>
+                    <button class="tb-btn" data-action="bulkRenumber">Renumber from…</button>
+                    <button class="tb-btn" data-action="bulkFollow">Follow provider name</button>
+                    <button class="tb-btn danger" data-action="bulkDelete">Delete</button>
+                    <button class="tb-btn" data-action="suggestions">Merge suggestions</button>
+                    <button class="tb-btn" data-action="rebuild">Rebuild lineup</button>
+                    <button class="tb-btn" data-action="applyNumbers">Apply imported numbers</button>
+                </div>
+                <div id="tbSuggestions"></div>
+                <table class="tb" id="tbChannels"><thead><tr><th><input type="checkbox" id="tbChanAll"></th><th>#</th><th></th><th>Name</th><th>Category</th><th>Streams</th><th>EPG</th><th></th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <div class="tb-panel" data-panel="catalog">
+                <div class="tb-toolbar">
+                    <select id="tbCatSource"><option value="">all sources</option></select>
+                    <select id="tbCatCategory"><option value="">all categories</option></select>
+                    <input type="text" id="tbCatQ" placeholder="search stream name / tvg-id">
+                    <button class="tb-btn" data-action="loadCatalog">Search</button>
+                    <span class="tb-muted" id="tbCatCount"></span>
+                </div>
+                <table class="tb" id="tbCatalog"><thead><tr><th></th><th>Provider name</th><th>Provider category</th><th>EPG id</th><th>Health</th><th>Channel</th><th></th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <div class="tb-panel" data-panel="rules">
+                <p class="tb-muted">Rules run in order on every refresh; the first match decides the Terebi category, the number block and whether new streams become channels automatically. Patterns are regular expressions matched against the provider category and the raw stream name.</p>
+                <div class="tb-toolbar"><button class="tb-btn primary" data-action="addRule">+ Rule</button><button class="tb-btn" data-action="saveRules">Save rules</button><button class="tb-btn" data-action="loadPreset">Load preset…</button><button class="tb-btn" data-action="reflow">Re-apply rules to all channels</button><button class="tb-btn" data-action="rebuild">Rebuild lineup</button></div>
+                <table class="tb" id="tbRules"><thead><tr><th>On</th><th>Name</th><th>Sources</th><th>Category pattern</th><th>Name pattern</th><th>→ Category</th><th>Numbers from</th><th>Auto-add</th><th>Follow name</th><th>Exclude</th><th></th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <div class="tb-panel" data-panel="epg">
+                <div class="tb-card">
+                    <b>XMLTV sources</b> <span class="tb-muted">(one URL per line; .xml or .xml.gz; per-source URLs are set on the source)</span>
+                    <textarea id="tbEpgUrls" rows="5" style="width:100%;margin-top:.5em"></textarea>
+                    <div class="tb-toolbar"><button class="tb-btn primary" data-action="saveEpgUrls">Save</button><button class="tb-btn" data-action="refreshEpg">Download now</button></div>
+                </div>
+                <div class="tb-card">
+                    <b>Mapping suggestions</b> <span class="tb-muted">channels without guide data whose name matches an XMLTV channel</span>
+                    <div class="tb-toolbar"><button class="tb-btn" data-action="epgSuggestions">Find</button><button class="tb-btn primary" data-action="epgApplyAll">Apply all first hits</button></div>
+                    <div id="tbEpgSuggestions"></div>
+                </div>
+            </div>
+
+            <div class="tb-panel" data-panel="settings">
+                <form id="TerebiConfigForm">
+                    <div class="inputContainer"><input is="emby-input" type="number" id="SourceRefreshMinutes" label="Refresh sources every (minutes)" min="10"></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="HealthCheckHours" label="Check stream health every (hours, 0 = off)" min="0"></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="HealthCheckConcurrencyPerSource" label="Parallel probes per source" min="1" max="8"></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="DeadAfterFailures" label="Stream is dead after N failed probes" min="1"></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="HideDeadChannels"><span>Hide channels whose every stream is dead</span></label></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="ProbeSingleConnectionSources"><span>Also probe sources limited to one connection (each probe takes the account's only slot; viewers get "too many connections" meanwhile)</span></label></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="StreamBufferMiB" label="Stream buffer per channel (MiB)" min="4" max="128"></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="StreamStartTimeoutSeconds" label="Fail over if no data within (seconds)" min="3"></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="StreamStallTimeoutSeconds" label="Fail over when stalled for (seconds)" min="5"></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="StreamLingerSeconds" label="Keep an upstream connection after the last viewer left (seconds)" min="0" max="120"></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="WatchdogIdleSeconds" label="Watchdog: close a stream nobody has read from for (seconds, 0 = off)" min="0"></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="WatchdogRequireSession"><span>Watchdog: also close streams opened through Jellyfin when no session is playing the channel any more</span></label></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="EpgRefreshHours" label="Refresh EPG every (hours)" min="1"></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="AutoMapEpgByName"><span>Map channels without guide data to the XMLTV channel with the same name automatically</span></label></div>
+                    <div class="inputContainer"><input is="emby-input" type="text" id="UserAgent" label="User agent for providers"></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="FollowProviderNamesByDefault"><span>New channels follow provider names by default</span></label></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="EnableChannelFolders"><span>Offer a "Terebi" folder tree (categories with channels) under Channels in every client</span></label></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="ShowNowPlayingInFolderNames"><span>Show the programme on air in folder-tree item names (refreshed every 10 minutes)</span></label></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="EnableWebCategoryFilter"><span>Add a category selector to Live TV pages in the web client (needs the File Transformation plugin; restart to apply)</span></label></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="AutoRefreshGuide"><span>Refresh Jellyfin's guide automatically when channels are added or removed</span></label></div>
+                    <div class="checkboxContainer"><label class="emby-checkbox-label"><input is="emby-checkbox" type="checkbox" id="EnableLogoIndex"><span>Look up channel logos in the iptv-org database by name and country (fixes wrong provider logos)</span></label></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="LogoIndexPriority" label="Logo index priority (a source with a higher logo priority keeps its own logos)"></div>
+                    <div class="inputContainer"><input is="emby-input" type="number" id="LogoCacheDays" label="Keep unreferenced cached logos for (days)" min="1"></div>
+                    <button is="emby-button" type="submit" class="raised button-submit block"><span>Save</span></button>
+                </form>
+            </div>
+
+            <div id="tbEditor" hidden></div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
