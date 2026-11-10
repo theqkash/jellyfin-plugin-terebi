@@ -195,7 +195,9 @@ public sealed class LineupBuilder
             LogicalChannel? target = null;
             var streamCountry = p.RegionPrefix is { Length: >= 2 } rp && rp[..2].All(char.IsLetter) ? rp[..2].ToUpperInvariant() : SourceCountry(s.SourceId);
             var streamIdentity = _logoIndex.IdentityOf(p.DisplayName, streamCountry, s.EpgId is null ? null : [s.EpgId]);
-            if (s.EpgId is not null && channelsByEpg.TryGetValue(s.EpgId, out var byEpg) && Compatible(channelCountry.GetValueOrDefault(byEpg), streamCountry))
+            // A provider may tag a sibling ("NEWS 2", "NEWS POLITICS") with the main channel's EPG id; the name decides then.
+            if (s.EpgId is not null && channelsByEpg.TryGetValue(s.EpgId, out var byEpg) && Compatible(channelCountry.GetValueOrDefault(byEpg), streamCountry)
+                && (p.Key == byEpg.MatchKey || (!channelsByKey.ContainsKey(p.Key) && !p.Key.StartsWith(byEpg.MatchKey + " ", StringComparison.Ordinal))))
             {
                 target = byEpg;
             }
