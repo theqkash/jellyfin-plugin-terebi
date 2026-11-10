@@ -31,11 +31,66 @@
         return set;
     }
 
+    // ---- request filter ------------------------------------------------------------------------
+    // The guide asks for its channels as soon as it opens, before any page script could wrap a client method,
+    // and newer pages use their own API client. Filtering the /LiveTv/Channels response itself covers both.
+    var originalFetch = window.fetch;
+    function categoriesFor(url, init) {
+        if (cache.categories && Date.now() - cache.at < 300000) { return Promise.resolve(cache.categories); }
+        var base = url.replace(/\/LiveTv\/Channels.*$/i, '');
+        return originalFetch.call(window, base + '/Terebi/Public/Categories', { headers: (init && init.headers) || {} }).then(function (r) { return r.json(); }).then(function (r) {
+            cache.at = Date.now();
+            cache.categories = r.categories || [];
+            cache.byNumber = {};
+            cache.categories.forEach(function (c) { c.numbers.forEach(function (n) { cache.byNumber[String(n)] = c.name; }); });
+            return cache.categories;
+        }).catch(function () { return cache.categories || []; });
+    }
+
+    function filteredChannels(url, init, category) {
+        var u = new URL(url, location.href);
+        var startIndex = parseInt(u.searchParams.get('StartIndex') || u.searchParams.get('startIndex') || '0', 10) || 0;
+        var limit = parseInt(u.searchParams.get('Limit') || u.searchParams.get('limit') || '0', 10) || 0;
+        ['StartIndex', 'startIndex', 'Limit', 'limit'].forEach(function (k) { u.searchParams.delete(k); });
+        return categoriesFor(url, init).then(function (cats) {
+            // A remembered category that no longer exists (renamed, renumbered) must not hide every channel.
+            if (!cats.some(function (c) { return c.name === category; })) {
+                setCurrent('');
+                return originalFetch.call(window, url, init);
+            }
+
+            return originalFetch.call(window, u.toString(), init).then(function (resp) {
+                if (!resp.ok) { return resp; }
+                return resp.json().then(function (result) {
+                    var allowed = numbersOf(category);
+                    var items = (result.Items || []).filter(function (i) { return allowed[String(i.ChannelNumber)] === true; });
+                    var page = limit ? items.slice(startIndex, startIndex + limit) : items.slice(startIndex);
+                    var body = JSON.stringify(Object.assign({}, result, { Items: page, TotalRecordCount: items.length, StartIndex: startIndex }));
+                    return new Response(body, { status: resp.status, statusText: resp.statusText, headers: { 'Content-Type': 'application/json' } });
+                });
+            });
+        });
+    }
+
+    if (typeof originalFetch === 'function') {
+        window.fetch = function (input, init) {
+            try {
+                var url = typeof input === 'string' ? input : (input && input.url) || '';
+                var method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+                var category = current();
+                if (category && method === 'GET' && /\/LiveTv\/Channels(\?|$)/i.test(url) && !/[?&]TerebiAll=/i.test(url) && typeof input === 'string') {
+                    return filteredChannels(url, init, category);
+                }
+            } catch (e) { /* fall through to the real request */ }
+            return originalFetch.apply(this, arguments);
+        };
+    }
+
     // ---- ApiClient wrapper -------------------------------------------------------------------
     function patchApiClient(client) {
         var proto = Object.getPrototypeOf(client);
         var target = proto && proto.getLiveTvChannels ? proto : client;
-        if (patched || !target.getLiveTvChannels || target.getLiveTvChannels.__terebi) { return; }
+        if (patched || typeof originalFetch === 'function' || !target.getLiveTvChannels || target.getLiveTvChannels.__terebi) { return; }
         var original = target.getLiveTvChannels;
         var wrapped = function (options) {
             var self = this;

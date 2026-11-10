@@ -65,7 +65,7 @@
     }
 
     function loadChannels(client) {
-        return api(client, 'GET', 'LiveTv/Channels', { UserId: client.getCurrentUserId(), Limit: 5000, AddCurrentProgram: true, EnableUserData: false, EnableImageTypes: 'Primary', ImageTypeLimit: 1, SortBy: 'SortName' })
+        return api(client, 'GET', 'LiveTv/Channels', { UserId: client.getCurrentUserId(), Limit: 5000, TerebiAll: true, AddCurrentProgram: true, EnableUserData: false, EnableImageTypes: 'Primary', ImageTypeLimit: 1, SortBy: 'SortName' })
             .then(function (r) {
                 state.channels = (r.Items || []).map(function (i) {
                     return { id: i.Id, name: i.Name, number: parseInt(i.ChannelNumber, 10) || 0, numberText: i.ChannelNumber || '', img: i.ImageTags && i.ImageTags.Primary ? client.getUrl('Items/' + i.Id + '/Images/Primary', { maxHeight: 120, tag: i.ImageTags.Primary, quality: 90 }) : null, now: i.CurrentProgram || null, category: state.byNumber[String(i.ChannelNumber)] || 'Other' };
@@ -343,20 +343,117 @@
         }
     }
 
+    // ---- new (React) layout -----------------------------------------------------------------
+    // Jellyfin 12.4's new layout replaced the Live TV header tabs with a view menu ("Programs", "Guide", ...)
+    // and switches views through ?tab=N. Terebi becomes one more entry of that menu and shows its panel over
+    // the page content; picking any other view (the address changes) hands the page back.
+    function onModernLive() {
+        return /^#\/livetv(\?|$)/.test(location.hash) && !document.getElementById('liveTvSuggestedPage') && !!document.querySelector('.MuiAppBar-root');
+    }
+
+    function titleSpan() {
+        var bar = document.querySelector('.MuiAppBar-root');
+        return bar ? bar.querySelector('button .MuiTypography-h2, button h2') : null;
+    }
+
+    function activateModern(client) {
+        ensureStyle();
+        var bar = document.querySelector('.MuiAppBar-root');
+        var top = bar ? Math.round(bar.getBoundingClientRect().bottom) : 64;
+        var overlay = document.getElementById('terebiOverlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'terebiOverlay';
+            overlay.innerHTML = '<div id="terebiTab" class="pageTabContent is-active" style="display:block;padding-top:.5em"></div>';
+            document.body.appendChild(overlay);
+        }
+        overlay.style.cssText = 'position:fixed;left:0;right:0;bottom:0;top:' + top + 'px;overflow:auto;z-index:1000;background:var(--theme-background, #101010)';
+        var t = titleSpan();
+        if (t) { if (!t.hasAttribute('data-terebi-title')) { t.setAttribute('data-terebi-title', t.textContent); } t.textContent = 'Terebi'; }
+        state.active = true;
+        store(KEY_LAST, '1');
+        refresh(client);
+        clearInterval(state.timer); state.timer = setInterval(function () { if (state.active && document.getElementById('terebiOverlay')) { refresh(client); } }, 60000);
+        clearInterval(state.tick); state.tick = setInterval(function () { if (state.active) { renderBars(); } }, 15000);
+    }
+
+    function deactivateModern(remember) {
+        var overlay = document.getElementById('terebiOverlay');
+        if (!overlay) { return; }
+        overlay.parentNode.removeChild(overlay);
+        state.active = false;
+        if (!remember) { store(KEY_LAST, ''); }
+        clearInterval(state.timer); clearInterval(state.tick);
+        var t = document.querySelector('[data-terebi-title]');
+        if (t) { t.textContent = t.getAttribute('data-terebi-title'); t.removeAttribute('data-terebi-title'); }
+    }
+
+    function closeMenu(list) {
+        (list || document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+        var backdrop = document.querySelector('.MuiPopover-root .MuiBackdrop-root, .MuiMenu-root .MuiBackdrop-root');
+        if (backdrop) { backdrop.click(); }
+    }
+
+    function isViewMenu(list, items) {
+        var labels = items.map(function (i) { return i.textContent.trim(); });
+        if (labels.indexOf('Guide') >= 0 && labels.indexOf('Channels') >= 0) { return true; }
+        // other interface languages: the view menu lists the current view, which is the title of the page
+        var t = titleSpan();
+        var current = t ? (t.getAttribute('data-terebi-title') || t.textContent).trim() : '';
+        return items.length >= 4 && items.length <= 8 && current.length > 0 && labels.indexOf(current) >= 0;
+    }
+
+    function ensureMenuItem() {
+        var client = window.ApiClient;
+        if (!client || !onModernLive()) { return; }
+        Array.prototype.forEach.call(document.querySelectorAll('ul[role="menu"]'), function (list) {
+            var items = Array.prototype.slice.call(list.querySelectorAll('[role="menuitem"]'));
+            if (!items.length || list.querySelector('[data-terebi-item]') || !isViewMenu(list, items)) { return; }
+            var template = items[items.length - 1];
+            var item = template.cloneNode(true);
+            item.setAttribute('data-terebi-item', '1');
+            item.classList.remove('Mui-selected');
+            var label = item.querySelector('.MuiListItemText-primary, .MuiTypography-root') || item;
+            label.textContent = 'Terebi';
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeMenu(list);
+                setTimeout(function () { activateModern(client); }, 50);
+            }, true);
+            items.forEach(function (other) {
+                other.addEventListener('click', function () { if (state.active) { deactivateModern(false); } }, true);
+            });
+            list.appendChild(item);
+        });
+
+        // Back on Live TV with Terebi as the last used view and no view in the address: reopen it.
+        if (!state.active && load(KEY_LAST) === '1' && location.hash === '#/livetv' && !document.body.hasAttribute('data-terebi-restored')) {
+            document.body.setAttribute('data-terebi-restored', '1');
+            activateModern(client);
+        }
+    }
+
+    window.addEventListener('hashchange', function () {
+        document.body.removeAttribute('data-terebi-restored');
+        if (state.active && document.getElementById('terebiOverlay')) { deactivateModern(!onModernLive()); }
+    });
+
     state.category = load(KEY_CAT);
 
     var pending = null;
-    function schedule() { clearTimeout(pending); pending = setTimeout(ensureTab, 200); }
+    function schedule() { clearTimeout(pending); pending = setTimeout(function () { ensureTab(); ensureMenuItem(); }, 200); }
     function init() {
         document.addEventListener('viewshow', function () {
             var page = document.getElementById('liveTvSuggestedPage');
             if (page) { page.removeAttribute('data-terebi-restored'); }
-            if (!livePage() && state.active) { deactivate(); }
+            if (!livePage() && state.active && !document.getElementById('terebiOverlay')) { deactivate(); }
             schedule();
         }, true);
         window.addEventListener('hashchange', schedule);
         new MutationObserver(function () {
             if (document.querySelector('.headerTabs .emby-tabs-slider') && document.getElementById('liveTvSuggestedPage')) { schedule(); }
+            if (onModernLive() && document.querySelector('ul[role="menu"]')) { ensureMenuItem(); }
         }).observe(document.body, { childList: true, subtree: true });
         schedule();
     }
