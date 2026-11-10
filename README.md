@@ -11,7 +11,8 @@
 <p align="center"><b>Any number of IPTV sources in, one clean Live TV channel list out.</b><br>
 Xtream and M3U sources merged into logical channels, with failover, health checks, EPG, logos and categories. <i>Terebi</i> is Japanese for TV.</p>
 
-<p align="center"><img src="docs/guide.png" alt="Jellyfin guide with Terebi channels: number blocks per category, logos and the category selector" width="100%"></p>
+<p align="center"><img src="docs/categories.png" alt="Terebi category folders in Jellyfin: one tile per category with its channel count and logos" width="100%"></p>
+<p align="center"><i>Every category becomes a folder with its own tile, in every Jellyfin client.</i></p>
 
 ## Quick install
 
@@ -31,6 +32,10 @@ then install **Terebi** from the Catalog and restart Jellyfin. Terebi ships no c
 | [Jellyfin.Xtream](https://github.com/Kevinjil/Jellyfin.Xtream) | not needed, but an existing setup can be imported in one click; disable it afterwards |
 
 ## Features
+
+<p align="center"><img src="docs/channels.png" alt="Terebi channel editor: each channel fed by streams from several sources, with health latency, quality and guide status" width="100%"></p>
+<p align="center"><i>The channel editor: one channel, streams from several sources, each probed for health; failover picks the next working one.</i></p>
+
 
 
 - **Sources**: Xtream Codes accounts and M3U playlists (URL or file), any number of each.
